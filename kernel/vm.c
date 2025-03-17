@@ -488,9 +488,37 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 
 
 #ifdef LAB_PGTBL
-void
-vmprint(pagetable_t pagetable) {
-  // your code here
+void vmprint_recursive(pagetable_t pagetable, int level) {
+  // page entries loop
+  for (int i = 0; i < 512; i++) {
+    pte_t* pte = &pagetable[i];
+    // check valid flag
+    if (*pte & PTE_V) {
+      // print .. for each level
+      for (int j = 0; j <= level; j++) {
+        if (j == level)
+        {
+          printf("..");
+          break;
+        }
+        printf(".. ");
+      }
+      // print data
+      printf("%d: pte %p pa %p\n", i, pte, (pte_t*)PTE2PA(*pte));
+      
+      // check if a leaf to go deeper
+      if (!(*pte & (PTE_R | PTE_W | PTE_X))) {
+        vmprint_recursive((pagetable_t)PTE2PA(*pte), level + 1);
+      }
+    }
+  }
+}
+
+void vmprint(pagetable_t pagetable) {
+  // print current
+  printf("page table %p\n", pagetable);
+  // recursive through page
+  vmprint_recursive(pagetable, 0);
 }
 #endif
 
