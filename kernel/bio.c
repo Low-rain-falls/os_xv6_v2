@@ -23,22 +23,24 @@
 #include "fs.h"
 #include "buf.h"
 
+// buffer cache structure similar to buffer structure
 struct {
   struct spinlock lock;
-  struct buf buf[NBUF];
+  struct buf buf[NBUF]; // array of all buffers in cache
 
   // Linked list of all buffers, through prev/next.
   // Sorted by how recently the buffer was used.
   // head.next is most recent, head.prev is least.
-  struct buf head;
+  struct buf head; // first node in linked list of buffers
 } bcache;
 
+//initialize cache 
 void
 binit(void)
 {
   struct buf *b;
 
-  initlock(&bcache.lock, "bcache");
+  initlock(&bcache.lock, "bcache"); //initialize lock named "bcache"
 
   // Create linked list of buffers
   bcache.head.prev = &bcache.head;
@@ -46,12 +48,13 @@ binit(void)
   for(b = bcache.buf; b < bcache.buf+NBUF; b++){
     b->next = bcache.head.next;
     b->prev = &bcache.head;
-    initsleeplock(&b->lock, "buffer");
+    initsleeplock(&b->lock, "buffer"); // init sleeplock to synchronize access individually
     bcache.head.next->prev = b;
     bcache.head.next = b;
   }
 }
 
+// find buffer or allcate new buffer if cannot find
 // Look through buffer cache for block on device dev.
 // If not found, allocate a buffer.
 // In either case, return locked buffer.
@@ -62,7 +65,7 @@ bget(uint dev, uint blockno)
 
   acquire(&bcache.lock);
 
-  // Is the block already cached?
+  // Is the block already cached? (find exist buffer)
   for(b = bcache.head.next; b != &bcache.head; b = b->next){
     if(b->dev == dev && b->blockno == blockno){
       b->refcnt++;
@@ -75,6 +78,7 @@ bget(uint dev, uint blockno)
   // Not cached.
   // Recycle the least recently used (LRU) unused buffer.
   for(b = bcache.head.prev; b != &bcache.head; b = b->prev){
+    //recycle buffer which has re
     if(b->refcnt == 0) {
       b->dev = dev;
       b->blockno = blockno;
@@ -85,7 +89,7 @@ bget(uint dev, uint blockno)
       return b;
     }
   }
-  panic("bget: no buffers");
+  panic("bget: no buffers"); //if there are no available buffer call panic.
 }
 
 // Return a locked buf with the contents of the indicated block.
@@ -95,20 +99,23 @@ bread(uint dev, uint blockno)
   struct buf *b;
 
   b = bget(dev, blockno);
+  //check if the data is valid or not
   if(!b->valid) {
-    virtio_disk_rw(b, 0);
+    virtio_disk_rw(b, 0); //write data into buffer
     b->valid = 1;
   }
   return b;
 }
 
 // Write b's contents to disk.  Must be locked.
+// Synchronize the contents of buffer b with the block on disk.
 void
 bwrite(struct buf *b)
 {
+  //check if buffer is locked by instance process
   if(!holdingsleep(&b->lock))
-    panic("bwrite");
-  virtio_disk_rw(b, 1);
+    panic("bwrite"); //call panic
+  virtio_disk_rw(b, 1); // write data into buffer
 }
 
 // Release a locked buffer.
@@ -116,15 +123,17 @@ bwrite(struct buf *b)
 void
 brelse(struct buf *b)
 {
+  //check if buffer is lock
   if(!holdingsleep(&b->lock))
-    panic("brelse");
-
+    panic("brelse"); // call panic
+  //release lock buffer
   releasesleep(&b->lock);
 
+  //reduce refcnt
   acquire(&bcache.lock);
   b->refcnt--;
   if (b->refcnt == 0) {
-    // no one is waiting for it.
+    // no one is waiting for it and move it to LRU
     b->next->prev = b->prev;
     b->prev->next = b->next;
     b->next = bcache.head.next;
@@ -136,6 +145,7 @@ brelse(struct buf *b)
   release(&bcache.lock);
 }
 
+//pin buffer to prevent buffer from reusing
 void
 bpin(struct buf *b) {
   acquire(&bcache.lock);
@@ -143,6 +153,7 @@ bpin(struct buf *b) {
   release(&bcache.lock);
 }
 
+//unpin buffer
 void
 bunpin(struct buf *b) {
   acquire(&bcache.lock);

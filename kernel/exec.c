@@ -7,18 +7,21 @@
 #include "defs.h"
 #include "elf.h"
 
+//Load file contents into memory
 static int loadseg(pde_t *, uint64, struct inode *, uint, uint);
 
+//convert ELF flag into type of access  
 int flags2perm(int flags)
 {
     int perm = 0;
     if(flags & 0x1)
-      perm = PTE_X;
+      perm = PTE_X; //execute access
     if(flags & 0x2)
-      perm |= PTE_W;
+      perm |= PTE_W; //write access
     return perm;
 }
 
+//execute file
 int
 exec(char *path, char **argv)
 {
@@ -31,59 +34,62 @@ exec(char *path, char **argv)
   pagetable_t pagetable = 0, oldpagetable;
   struct proc *p = myproc();
 
-  begin_op();
+// open execute file
+  begin_op(); //begin a transaction of file system
 
-  if((ip = namei(path)) == 0){
-    end_op();
+  if((ip = namei(path)) == 0){ //find inode 
+    end_op(); // end transaction
     return -1;
   }
-  ilock(ip);
+  ilock(ip); //lock inode to make sure that inode can not be modified during executing
 
-  // Check ELF header
-  if(readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
+  //read and check ELF header
+  if(readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf)) //read
     goto bad;
 
-  if(elf.magic != ELF_MAGIC)
+  if(elf.magic != ELF_MAGIC) //check
     goto bad;
 
-  if((pagetable = proc_pagetable(p)) == 0)
+  if((pagetable = proc_pagetable(p)) == 0) //create new pagetable for executing
     goto bad;
 
   // Load program into memory.
+  //loop through program header in ELF
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
+    //read a segment
     if(readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
-    if(ph.type != ELF_PROG_LOAD)
+    if(ph.type != ELF_PROG_LOAD) //checks if a segment is the type to load into memory 
       continue;
-    if(ph.memsz < ph.filesz)
+    if(ph.memsz < ph.filesz) //memory size >= file size
       goto bad;
-    if(ph.vaddr + ph.memsz < ph.vaddr)
+    if(ph.vaddr + ph.memsz < ph.vaddr) //address must align to the page size
       goto bad;
     if(ph.vaddr % PGSIZE != 0)
       goto bad;
     uint64 sz1;
-    if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
+    if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)//allocate memory for segment
       goto bad;
     sz = sz1;
-    if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
+    if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0) //Load file contents into memory
       goto bad;
   }
-  iunlockput(ip);
-  end_op();
+  iunlockput(ip); //unlock ip
+  end_op(); // end transaction
   ip = 0;
 
   p = myproc();
   uint64 oldsz = p->sz;
 
-  // Allocate some pages at the next page boundary.
+  // Alolcate some pages at the next page boundary.
   // Make the first inaccessible as a stack guard.
   // Use the rest as the user stack.
-  sz = PGROUNDUP(sz);
+  sz = PGROUNDUP(sz); //round the value
   uint64 sz1;
-  if((sz1 = uvmalloc(pagetable, sz, sz + (USERSTACK+1)*PGSIZE, PTE_W)) == 0)
+  if((sz1 = uvmalloc(pagetable, sz, sz + (USERSTACK+1)*PGSIZE, PTE_W)) == 0) //allocate stack space in memory.
     goto bad;
   sz = sz1;
-  uvmclear(pagetable, sz-(USERSTACK+1)*PGSIZE);
+  uvmclear(pagetable, sz-(USERSTACK+1)*PGSIZE); //makes the first page inaccessible, acting as a "stack guard".
   sp = sz;
   stackbase = sp - USERSTACK*PGSIZE;
 
@@ -126,10 +132,14 @@ exec(char *path, char **argv)
   p->sz = sz;
   p->trapframe->epc = elf.entry;  // initial program counter = main
   p->trapframe->sp = sp; // initial stack pointer
-  proc_freepagetable(oldpagetable, oldsz);
-  vmprint(p->pagetable);
+  proc_freepagetable(oldpagetable, oldsz); //deallocate the old page table
+  if (p->trapframe->a0 < 0) {
+    return -1;
+  }
+  vm_print(pagetable);
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
+//handle the unvalid
  bad:
   if(pagetable)
     proc_freepagetable(pagetable, sz);

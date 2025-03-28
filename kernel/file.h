@@ -5,8 +5,8 @@ struct file {
   char writable;
   struct pipe *pipe; // FD_PIPE
   struct inode *ip;  // FD_INODE and FD_DEVICE
-  uint off;          // FD_INODE
-  short major;       // FD_DEVICE
+  uint off;          // FD_INODE (offset) in file)
+  short major;       // FD_DEVICE (major device number)
 };
 
 #define major(dev)  ((dev) >> 16 & 0xFFFF)
