@@ -1,7 +1,7 @@
 //
 // Console input and output, to the uart.
 // Reads are line at a time.
-// Implements special input characters:f
+// Implements special input characters:
 //   newline -- end of line
 //   control-h -- backspace
 //   control-u -- kill line

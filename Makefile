@@ -194,10 +194,9 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
-	$U/_testhello\
-	$U/_xv6\
-	$U/_trace\
-	$U/_sysinfotest\
+	# $U/_pgaccesstest\
+
+
 
 
 ifeq ($(LAB),syscall)

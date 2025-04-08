@@ -36,7 +36,10 @@ entry("getpid");
 entry("sbrk");
 entry("sleep");
 entry("uptime");
-entry("hello");
-entry("xv6");
-entry("trace");
-entry("sysinfo");
+entry("bind");
+entry("unbind");
+entry("send");
+entry("recv");
+entry("pgpte");
+entry("kpgtbl");
+entry("pgaccess")

@@ -13,20 +13,16 @@
 #include "stat.h"
 #include "proc.h"
 
-//structures
-//device switch table
-struct devsw devsw[NDEV]; // the number of devices that the system supports. 
-//file table
+struct devsw devsw[NDEV];
 struct {
   struct spinlock lock;
-  struct file file[NFILE]; // array of file structures
+  struct file file[NFILE];
 } ftable;
 
-// initialize file table 
 void
 fileinit(void)
 {
-  initlock(&ftable.lock, "ftable"); //Initialize spinlock lock for ftable to synchronize access to file table.
+  initlock(&ftable.lock, "ftable");
 }
 
 // Allocate a file structure.
@@ -37,14 +33,13 @@ filealloc(void)
 
   acquire(&ftable.lock);
   for(f = ftable.file; f < ftable.file + NFILE; f++){
-    //find file structure that are not used
     if(f->ref == 0){
-      f->ref = 1; // mark that it has been used 
-      release(&ftable.lock); // unlock
+      f->ref = 1;
+      release(&ftable.lock);
       return f;
     }
   }
-  release(&ftable.lock); //unlock afer finding
+  release(&ftable.lock);
   return 0;
 }
 
@@ -54,13 +49,13 @@ filedup(struct file *f)
 {
   acquire(&ftable.lock);
   if(f->ref < 1)
-    panic("filedup"); // panic cannot duplicate because it isnot used
-  f->ref++; //duplicate
+    panic("filedup");
+  f->ref++;
   release(&ftable.lock);
   return f;
 }
 
-// Close file f.  (Decrement ref count, close when reaches 0.) and release.
+// Close file f.  (Decrement ref count, close when reaches 0.)
 void
 fileclose(struct file *f)
 {
@@ -68,25 +63,21 @@ fileclose(struct file *f)
 
   acquire(&ftable.lock);
   if(f->ref < 1)
-    panic("fileclose"); // panic cannot close because it is not used
-  // release 1 duplicate
+    panic("fileclose");
   if(--f->ref > 0){
     release(&ftable.lock);
     return;
   }
-  //if ref = 0 close file.
   ff = *f;
-  //reset member
   f->ref = 0;
   f->type = FD_NONE;
   release(&ftable.lock);
 
-  //close pipe if open pipe
   if(ff.type == FD_PIPE){
     pipeclose(ff.pipe, ff.writable);
   } else if(ff.type == FD_INODE || ff.type == FD_DEVICE){
     begin_op();
-    iput(ff.ip); //release
+    iput(ff.ip);
     end_op();
   }
 }
@@ -96,47 +87,41 @@ fileclose(struct file *f)
 int
 filestat(struct file *f, uint64 addr)
 {
-  struct proc *p = myproc(); //process structure
-  struct stat st; // static structure
+  struct proc *p = myproc();
+  struct stat st;
   
-  //get the metadata if the type is inode or device
   if(f->type == FD_INODE || f->type == FD_DEVICE){
     ilock(f->ip);
-    stati(f->ip, &st); //get the data
+    stati(f->ip, &st);
     iunlock(f->ip);
-    if(copyout(p->pagetable, addr, (char *)&st, sizeof(st)) < 0) //Copy the obtained data to the user's memory space
+    if(copyout(p->pagetable, addr, (char *)&st, sizeof(st)) < 0)
       return -1;
     return 0;
   }
   return -1;
 }
 
-// Read from file f and copy to address.
+// Read from file f.
 // addr is a user virtual address.
 int
 fileread(struct file *f, uint64 addr, int n)
 {
   int r = 0;
-  // check if file can be read or not
+
   if(f->readable == 0)
     return -1;
 
-  //read pipe
   if(f->type == FD_PIPE){
     r = piperead(f->pipe, addr, n);
-  //read device
   } else if(f->type == FD_DEVICE){
-    //get the correct device to read from device switch table
     if(f->major < 0 || f->major >= NDEV || !devsw[f->major].read)
       return -1;
     r = devsw[f->major].read(1, addr, n);
-  //read inode  
   } else if(f->type == FD_INODE){
     ilock(f->ip);
     if((r = readi(f->ip, 1, addr, f->off, n)) > 0)
       f->off += r;
     iunlock(f->ip);
-  // panic if file cannot read
   } else {
     panic("fileread");
   }
@@ -144,26 +129,23 @@ fileread(struct file *f, uint64 addr, int n)
   return r;
 }
 
-// Write to file f from the address.
+// Write to file f.
 // addr is a user virtual address.
 int
 filewrite(struct file *f, uint64 addr, int n)
 {
   int r, ret = 0;
-  //check if the file can be writen or not
+
   if(f->writable == 0)
     return -1;
 
-  //write to pipe
   if(f->type == FD_PIPE){
     ret = pipewrite(f->pipe, addr, n);
   } else if(f->type == FD_DEVICE){
-    //find the correct device from the device switch table
     if(f->major < 0 || f->major >= NDEV || !devsw[f->major].write)
       return -1;
     ret = devsw[f->major].write(1, addr, n);
   } else if(f->type == FD_INODE){
-    // To avoid writing beyond the log transaction size limit, the code will split write operations into many small blocks.
     // write a few blocks at a time to avoid exceeding
     // the maximum log transaction size, including
     // i-node, indirect block, allocation blocks,
@@ -198,16 +180,3 @@ filewrite(struct file *f, uint64 addr, int n)
   return ret;
 }
 
-uint64 count_open_files(void) {
-  uint64 count = 0;
-
-  acquire(&ftable.lock);
-  for (int i = 0; i < NFILE; i++) {
-    if (ftable.file[i].ref > 0){
-      count += 1;
-    }
-  }
-  release(&ftable.lock);
-
-  return count;
-}

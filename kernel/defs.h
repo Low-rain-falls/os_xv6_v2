@@ -1,3 +1,7 @@
+#ifdef LAB_MMAP
+typedef unsigned long size_t;
+typedef long int off_t;
+#endif
 struct buf;
 struct context;
 struct file;
@@ -33,7 +37,6 @@ void            fileinit(void);
 int             fileread(struct file*, uint64, int n);
 int             filestat(struct file*, uint64 addr);
 int             filewrite(struct file*, uint64, int n);
-uint64          count_open_files(void);
 
 // fs.c
 void            fsinit(int);
@@ -64,7 +67,6 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
-uint64          kfree_memsize(void);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -108,7 +110,6 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
-uint64          count_active_processes(void);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
@@ -120,6 +121,10 @@ void            initlock(struct spinlock*, char*);
 void            release(struct spinlock*);
 void            push_off(void);
 void            pop_off(void);
+int             atomic_read4(int *addr);
+#ifdef LAB_LOCK
+void            freelock(struct spinlock*);
+#endif
 
 // sleeplock.c
 void            acquiresleep(struct sleeplock*);
@@ -176,7 +181,12 @@ uint64          walkaddr(pagetable_t, uint64);
 int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
-void            vm_print(pagetable_t);
+#if defined(LAB_PGTBL) || defined(SOL_MMAP)
+void            vmprint(pagetable_t);
+#endif
+#ifdef LAB_PGTBL
+pte_t*          pgpte(pagetable_t, uint64);
+#endif
 
 // plic.c
 void            plicinit(void);
@@ -191,3 +201,39 @@ void            virtio_disk_intr(void);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+
+
+#ifdef LAB_PGTBL
+// vmcopyin.c
+int             copyin_new(pagetable_t, char *, uint64, uint64);
+int             copyinstr_new(pagetable_t, char *, uint64, uint64);
+#endif
+
+#ifdef LAB_LOCK
+// stats.c
+void            statsinit(void);
+void            statsinc(void);
+
+// sprintf.c
+int             snprintf(char*, unsigned long, const char*, ...);
+#endif
+
+#ifdef KCSAN
+void            kcsaninit();
+#endif
+
+#ifdef LAB_NET
+// pci.c
+void            pci_init();
+
+// e1000.c
+void            e1000_init(uint32 *);
+void            e1000_intr(void);
+int             e1000_transmit(char *, int);
+
+// net.c
+void            netinit(void);
+void            net_rx(char *buf, int len);
+
+#endif
