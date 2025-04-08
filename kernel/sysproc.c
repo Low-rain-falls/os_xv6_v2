@@ -149,7 +149,7 @@ uint64 sys_pgaccess(void) {
     if (pte && (*pte & PTE_V)) {
       // check access
       if (*pte & PTE_A) {
-        bitmask |= (1ULL << 1); // set bit
+        bitmask |= (1ULL << i); // set bit
         *pte &= ~PTE_A;
       }
     }
