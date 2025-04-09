@@ -488,7 +488,7 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 
 
 #ifdef LAB_PGTBL
-// void vm_print_recursive (pagetable_t pagetable, int depth){
+// void vmprint_recursive (pagetable_t pagetable, int depth){
 //   // base case
 //   if (pagetable == 0)
 //     return;
@@ -507,7 +507,7 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 //       printf("%d: pte %p pa %p\n", i, pte, (pte_t*)pa);
 
 //       if ((*pte & (PTE_R|PTE_W|PTE_X)) == 0){
-//         vm_print_recursive((pagetable_t)pa, depth + 1);
+//         vmprint_recursive((pagetable_t)pa, depth + 1);
 //       }
 //     } 
 //   }
@@ -538,6 +538,7 @@ void vmprint_recursive(pagetable_t pagetable, int level) {
     }
   }
 }
+
 
 void vmprint(pagetable_t pagetable){
   printf("page table %p\n ", pagetable);
