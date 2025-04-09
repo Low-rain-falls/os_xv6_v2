@@ -515,7 +515,7 @@ void vmprint_recursive(pagetable_t pagetable, int level) {
 }
 
 void vmprint(pagetable_t pagetable){
-  printf("page table %p\n ", pagetable);
+  printf("page table %p\n", pagetable);
   vmprint_recursive(pagetable, 2);
 }
 #endif
