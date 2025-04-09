@@ -488,34 +488,60 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 
 
 #ifdef LAB_PGTBL
-void vm_print_recursive (pagetable_t pagetable, int depth){
-  // base case
-  if (pagetable == 0)
-    return;
+// void vm_print_recursive (pagetable_t pagetable, int depth){
+//   // base case
+//   if (pagetable == 0)
+//     return;
 
-  for (int i = 0; i < 512; i++){
+//   for (int i = 0; i < 512; i++){
+//     pte_t* pte = &pagetable[i];
+//     // check valid flag
+//     if(*pte & PTE_V){
+//       uint64 pa = PTE2PA(*pte);
+      
+//       // print the inndetation base on depth
+//       for (int j = 0; j < depth; j++){
+//         printf(" ..");
+//       }
+
+//       printf("%d: pte %p pa %p\n", i, pte, (pte_t*)pa);
+
+//       if ((*pte & (PTE_R|PTE_W|PTE_X)) == 0){
+//         vm_print_recursive((pagetable_t)pa, depth + 1);
+//       }
+//     } 
+//   }
+// }
+
+void vmprint_recursive(pagetable_t pagetable, int level) {
+  // page entries loop
+  for (int i = 0; i < 512; i++) {
     pte_t* pte = &pagetable[i];
     // check valid flag
-    if(*pte & PTE_V){
-      uint64 pa = PTE2PA(*pte);
+    if (*pte & PTE_V) {
+      // print .. for each level
+      for (int j = 2; j >= level; j--) {
+        if (j == level)
+        {
+          printf("..");
+          break;
+        }
+        printf(".. ");
+      }
+      // print data
+      printf("%d: pte %p pa %p\n", i, (pte_t*)(*pte), (pte_t*)PTE2PA(*pte));
       
-      // print the inndetation base on depth
-      for (int j = 0; j < depth; j++){
-        printf(" ..");
+      // check if a leaf to go deeper
+      if (level > 0) {
+        vmprint_recursive((pagetable_t)PTE2PA(*pte), level - 1);
       }
-
-      printf("%d: pte %p pa %p\n", i, pte, (pte_t*)pa);
-
-      if ((*pte & (PTE_R|PTE_W|PTE_X)) == 0){
-        vm_print_recursive((pagetable_t)pa, depth + 1);
-      }
-    } 
+    }
   }
 }
 
 void vmprint(pagetable_t pagetable){
-  printf("Page table %p\n ", pagetable);
-  vm_print_recursive(pagetable, 0);
+  printf("page table %p\n ", pagetable);
+  vmprint_recursive(pagetable, 2);
 }
 #endif
 
