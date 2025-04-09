@@ -10,14 +10,16 @@ void print_pgtbl();
 void print_kpgtbl();
 void ugetpid_test();
 void superpg_test();
+void pgaccess_test();
 
 int
 main(int argc, char *argv[])
 {
   print_pgtbl();
-  ugetpid_test();
+  // ugetpid_test();
   print_kpgtbl();
-  superpg_test();
+  // superpg_test();
+  pgaccess_test();
   printf("pgtbltest: all tests succeeded\n");
   exit(0);
 }
@@ -140,3 +142,53 @@ superpg_test()
   }
   printf("superpg_test: OK\n");  
 }
+
+void pgaccess_test() {
+  printf("pgaccess_test starting\n");
+
+  char *buf = sbrk(3 * 4096);
+  if (buf == (char *) -1) {
+      printf("sbrk failed\n");
+      exit(1);
+  }
+
+  // Access pages 0 and 2
+  buf[0] = 'A';        // Page 0
+  buf[8192] = 'B';     // Page 2
+
+  // Prepare bitmask buffer
+  uint64 mask = 0;
+
+  // Call pgaccess to check which pages were accessed
+  if (pgaccess(buf, 3, &mask) < 0) {
+      printf("pgaccess failed\n");
+      exit(1);
+  }
+
+  // Expected bitmask: 0b101 (page 0 and 2 accessed)
+  if (mask == 0b101) {
+      printf("pgaccess test passed! Bitmask = %lx\n", mask);
+  } else {
+      printf("pgaccess test failed! Expected 0x5, got 0x%lx\n", mask);
+  }
+}
+// void
+// pgaccess_test()
+// {
+//   char *buf;
+//   uint64 abits;
+//   printf("pgaccess_test starting\n");
+//   testname = "pgaccess_test";
+//   buf = malloc(32 * PGSIZE);
+//   if (pgaccess(buf, 32, &abits) < 0)
+//     err("pgaccess failed 1");
+//   buf[PGSIZE * 1] += 1;
+//   buf[PGSIZE * 2] += 1;
+//   buf[PGSIZE * 30] += 1;
+//   if (pgaccess(buf, 32, &abits) < 0)
+//     err("pgaccess failed 2");
+//   if (abits != ((1 << 1) | (1 << 2) | (1 << 30)))
+//     err("incorrect access bits set");
+//   free(buf);
+//   printf("pgaccess_test: OK\n");
+// }

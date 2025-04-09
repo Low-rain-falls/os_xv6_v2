@@ -33,6 +33,7 @@ int send(uint32, uint32, uint32, char *, uint32);
 int recv(uint32, uint32*, uint32*, char *, uint32);
 #endif
 #ifdef LAB_PGTBL
+int pgaccess(void *va, int num_page, uint64 *mask);
 int ugetpid(void);
 uint64 pgpte(void*);
 void kpgtbl(void);

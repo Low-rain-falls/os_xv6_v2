@@ -123,3 +123,41 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64 sys_pgaccess(void) {
+  uint64 va; // virtual address
+  int num_page;
+  uint64 mask_addr; // buffer for bitmask
+  
+  vmprint(myproc()->pagetable);
+
+  argaddr(0, &va);
+  argint(1, &num_page);
+  argaddr(2, &mask_addr);
+
+  if (num_page > 64 || num_page <= 0 || mask_addr == 0 || va == 0) {
+    return -1;
+  }
+
+  struct proc *p = myproc();
+  uint64 bitmask = 0;
+
+  for (int i = 0; i < num_page; i++) {
+    pte_t *pte = walk(p->pagetable, va + i * PGSIZE, 0);
+
+    // check valid
+    if (pte && (*pte & PTE_V)) {
+      // check access
+      if (*pte & PTE_A) {
+        bitmask |= (1ULL << i); // set bit
+        *pte &= ~PTE_A;
+      }
+    }
+  }
+
+  if (copyout(p->pagetable, mask_addr, (char*)&bitmask, sizeof(bitmask)) < 0) {
+    return -1;
+  }
+
+  return 0;
+}

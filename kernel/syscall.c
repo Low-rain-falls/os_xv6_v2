@@ -109,6 +109,7 @@ extern uint64 sys_send(void);
 extern uint64 sys_recv(void);
 #endif
 #ifdef LAB_PGTBL
+extern uint64 sys_pgaccess(void);
 extern uint64 sys_pgpte(void);
 extern uint64 sys_kpgtbl(void);
 #endif
@@ -144,6 +145,7 @@ static uint64 (*syscalls[])(void) = {
 [SYS_recv] sys_recv,
 #endif
 #ifdef LAB_PGTBL
+[SYS_pgaccess] sys_pgaccess,
 [SYS_pgpte] sys_pgpte,
 [SYS_kpgtbl] sys_kpgtbl,
 #endif
