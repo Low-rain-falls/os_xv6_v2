@@ -172,23 +172,3 @@ void pgaccess_test() {
       printf("pgaccess test failed! Expected 0x5, got 0x%lx\n", mask);
   }
 }
-// void
-// pgaccess_test()
-// {
-//   char *buf;
-//   uint64 abits;
-//   printf("pgaccess_test starting\n");
-//   testname = "pgaccess_test";
-//   buf = malloc(32 * PGSIZE);
-//   if (pgaccess(buf, 32, &abits) < 0)
-//     err("pgaccess failed 1");
-//   buf[PGSIZE * 1] += 1;
-//   buf[PGSIZE * 2] += 1;
-//   buf[PGSIZE * 30] += 1;
-//   if (pgaccess(buf, 32, &abits) < 0)
-//     err("pgaccess failed 2");
-//   if (abits != ((1 << 1) | (1 << 2) | (1 << 30)))
-//     err("incorrect access bits set");
-//   free(buf);
-//   printf("pgaccess_test: OK\n");
-// }
